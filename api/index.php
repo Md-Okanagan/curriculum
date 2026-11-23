@@ -39,9 +39,13 @@ $setEnv('SESSION_DRIVER', 'cookie', false);
 $setEnv('CACHE_STORE', 'array', false);
 $setEnv('BASSET_DEV_MODE', 'true', false);
 
-// TLS to the managed MySQL host, using the CA cert committed with the repo
-if (is_file($ca = __DIR__.'/../database/ca.pem')) {
-    $setEnv('MYSQL_ATTR_SSL_CA', realpath($ca), false);
+// TLS to the managed MySQL host: CA cert text from the MYSQL_CA_PEM env var
+if ($caPem = getenv('MYSQL_CA_PEM')) {
+    $caFile = '/tmp/mysql-ca.pem';
+    if (! is_file($caFile)) {
+        file_put_contents($caFile, str_replace('\\n', "\n", trim($caPem))."\n");
+    }
+    $setEnv('MYSQL_ATTR_SSL_CA', $caFile, false);
 }
 
 // Requests reach PHP from Vercel's edge, which terminates HTTPS
