@@ -42,7 +42,8 @@ class LoginController extends Controller implements HasMiddleware
 
     protected function validateLogin(Request $request)
     {
-        if (! App::environment('local') && ! App::environment('testing')) {
+        // reCAPTCHA is only enforced when keys are configured
+        if (! App::environment('local') && ! App::environment('testing') && env('GOOGLE_CAPTCHA_PRIVATE_KEY')) {
             $request->validate([
                 $this->username() => 'required|string',
                 'password' => 'required|string',

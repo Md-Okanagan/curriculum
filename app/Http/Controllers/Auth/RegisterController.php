@@ -48,7 +48,8 @@ class RegisterController extends Controller implements HasMiddleware
      */
     protected function validator(array $data): \Illuminate\Contracts\Validation\Validator
     {
-        if (! App::environment('local') && ! App::environment('testing')) {
+        // reCAPTCHA is only enforced when keys are configured
+        if (! App::environment('local') && ! App::environment('testing') && env('GOOGLE_CAPTCHA_PRIVATE_KEY')) {
             return Validator::make($data, [
                 'name' => ['required', 'string', 'max:255'],
                 'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
