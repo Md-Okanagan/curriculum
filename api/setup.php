@@ -16,9 +16,18 @@ header('Content-Type: text/plain; charset=utf-8');
 $app->make(Kernel::class)->bootstrap();
 
 try {
-    if (! Schema::hasTable('migrations')) {
+    // Managed MySQL (e.g. Aiven) may require primary keys; the legacy schema has keyless tables
+    try {
+        DB::statement('SET SESSION sql_require_primary_key = 0');
+    } catch (Throwable $e) {
+        echo 'Note: could not unset sql_require_primary_key: '.$e->getMessage()."\n";
+    }
+
+    // Load the schema dump unless a previous run completed it (dump drops tables first, so reruns are safe)
+    if (! Schema::hasTable('migrations') || DB::table('migrations')->count() === 0) {
         $sql = file_get_contents(base_path('database/schema/mysql-schema.dump'));
         $statements = preg_split('/;\s*\n/', $sql);
+        Schema::dropAllTables(); // clear leftovers from an earlier failed run
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
         foreach ($statements as $statement) {
             if (trim($statement) !== '') {
