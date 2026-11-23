@@ -19,6 +19,18 @@ $setEnv = function (string $key, string $value, bool $override = true): void {
     $_SERVER[$key] = $value;
 };
 
+// Tolerate common APP_KEY paste mistakes: surrounding quotes/spaces or a missing "base64:" prefix
+$appKey = trim((string) getenv('APP_KEY'), " \t\n\r\"'");
+if ($appKey !== '' && strpos($appKey, 'base64:') !== 0 && strlen($appKey) !== 32) {
+    $decoded = base64_decode($appKey, true);
+    if ($decoded !== false && strlen($decoded) === 32) {
+        $appKey = 'base64:'.$appKey;
+    }
+}
+if ($appKey !== '') {
+    $setEnv('APP_KEY', $appKey);
+}
+
 // Writable storage in /tmp
 $storage = '/tmp/storage';
 foreach (['app/public', 'framework/cache/data', 'framework/sessions', 'framework/views', 'logs'] as $dir) {
