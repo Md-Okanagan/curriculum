@@ -35,6 +35,7 @@ $setEnv('VIEW_COMPILED_PATH', "$storage/framework/views");
 
 // Serverless-friendly defaults (can be overridden in Vercel env settings)
 $setEnv('LOG_CHANNEL', 'stderr', false);
+$setEnv('LOG_STDERR_FORMATTER', 'Monolog\\Formatter\\LineFormatter', false); // one-line errors, no stack traces
 $setEnv('SESSION_DRIVER', 'cookie', false);
 $setEnv('CACHE_STORE', 'array', false);
 $setEnv('BASSET_DEV_MODE', 'true', false);
