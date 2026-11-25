@@ -1,0 +1,67 @@
+name: Pause Vercel project (Dec 23)
+
+# Pauses the "curriculum" Vercel project at 12:01 AM Pacific on Dec 23, 2026.
+# Pausing stops serving the production deployment; settings, env vars and data are kept.
+# Resume any time: Vercel > curriculum > Settings > General > Resume Project.
+#
+# Requires repo secret VERCEL_TOKEN (Vercel > Account Settings > Tokens).
+
+on:
+  schedule:
+    # 08:01 UTC = 12:01 AM PST (UTC-8) on Dec 23
+    - cron: '1 8 23 12 *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Only check the token and project access; do NOT pause'
+        type: boolean
+        default: true
+
+jobs:
+  pause:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pause curriculum on Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          PROJECT_ID: prj_2MjshVOacVTGHrtsh8dXsfdireZX
+          SCOPE_SLUG: mohammad-038f
+          EVENT: ${{ github.event_name }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          API="https://api.vercel.com"
+
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "::error::VERCEL_TOKEN secret is not set"; exit 1
+          fi
+
+          # One-off: the cron would fire again every Dec 23, so only act in 2026.
+          if [ "$EVENT" = "schedule" ] && [ "$(date -u +%Y)" != "2026" ]; then
+            echo "Scheduled for 2026 only; skipping."; exit 0
+          fi
+
+          # Find the query string that gives access to the project (personal scope or team slug).
+          QS=""
+          code=$(curl -sS -o project.json -w '%{http_code}' \
+            -H "Authorization: Bearer $VERCEL_TOKEN" "$API/v9/projects/$PROJECT_ID")
+          if [ "$code" != "200" ]; then
+            QS="?slug=$SCOPE_SLUG"
+            code=$(curl -sS -o project.json -w '%{http_code}' \
+              -H "Authorization: Bearer $VERCEL_TOKEN" "$API/v9/projects/$PROJECT_ID$QS")
+          fi
+          if [ "$code" != "200" ]; then
+            echo "::error::Cannot read project $PROJECT_ID (HTTP $code)"; cat project.json; exit 1
+          fi
+          echo "Project found: $(jq -r '.name' project.json)"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "Dry run: token and project access OK. Not pausing."; exit 0
+          fi
+
+          code=$(curl -sS -o pause.json -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $VERCEL_TOKEN" "$API/v1/projects/$PROJECT_ID/pause$QS")
+          if [ "$code" != "200" ]; then
+            echo "::error::Pause failed (HTTP $code)"; cat pause.json; exit 1
+          fi
+          echo "Paused $(jq -r '.name' project.json) on Vercel."
